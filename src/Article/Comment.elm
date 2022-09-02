@@ -2,21 +2,16 @@ module Article.Comment exposing (Comment, author, body, createdAt, delete, id, l
 
 import Api exposing (Cred)
 import Api.Endpoint as Endpoint
-import Article exposing (Article)
-import Article.Slug as Slug exposing (Slug)
+import Article
+import Article.Slug exposing (Slug)
 import Author exposing (Author)
 import CommentId exposing (CommentId)
 import Http
 import Iso8601
 import Json.Decode as Decode exposing (Decoder)
-import Json.Decode.Pipeline exposing (custom, required)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode as Encode exposing (Value)
-import Profile exposing (Profile)
 import Time
-
-
-
--- TYPES
 
 
 type Comment
@@ -29,10 +24,6 @@ type alias Internals =
     , createdAt : Time.Posix
     , author : Author
     }
-
-
-
--- INFO
 
 
 id : Comment -> CommentId
@@ -55,18 +46,10 @@ author (Comment comment) =
     comment.author
 
 
-
--- LIST
-
-
 list : Maybe Cred -> Slug -> Http.Request (List Comment)
 list maybeCred articleSlug =
     Decode.field "comments" (Decode.list (decoder maybeCred))
         |> Api.get (Endpoint.comments articleSlug) maybeCred
-
-
-
--- POST
 
 
 post : Slug -> String -> Cred -> Http.Request Comment
@@ -85,17 +68,9 @@ encodeCommentBody str =
     Encode.object [ ( "comment", Encode.object [ ( "body", Encode.string str ) ] ) ]
 
 
-
--- DELETE
-
-
 delete : Slug -> CommentId -> Cred -> Http.Request ()
 delete articleSlug commentId cred =
     Api.delete (Endpoint.comment articleSlug commentId) cred Http.emptyBody (Decode.succeed ())
-
-
-
--- SERIALIZATION
 
 
 decoder : Maybe Cred -> Decoder Comment

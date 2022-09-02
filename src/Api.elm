@@ -1,42 +1,17 @@
 port module Api exposing (Cred, addServerError, application, decodeErrors, delete, get, login, logout, post, put, register, settings, storeCredWith, username, viewerChanges)
 
-{-| This module is responsible for communicating to the Conduit API.
-
-It exposes an opaque Endpoint type which is guaranteed to point to the correct URL.
-
--}
-
 import Api.Endpoint as Endpoint exposing (Endpoint)
 import Avatar exposing (Avatar)
 import Browser
 import Browser.Navigation as Nav
-import Http exposing (Body, Expect)
-import Json.Decode as Decode exposing (Decoder, Value, decodeString, field, string)
-import Json.Decode.Pipeline as Pipeline exposing (optional, required)
+import Http exposing (Body)
+import Json.Decode as Decode exposing (Decoder, Value, decodeString, field)
+import Json.Decode.Pipeline exposing (required)
 import Json.Encode as Encode
 import Url exposing (Url)
 import Username exposing (Username)
 
 
-
--- CRED
-
-
-{-| The authentication credentials for the Viewer (that is, the currently logged-in user.)
-
-This includes:
-
-  - The cred's Username
-  - The cred's authentication token
-
-By design, there is no way to access the token directly as a String.
-It can be encoded for persistence, and it can be added to a header
-to a HttpBuilder for a request, but that's it.
-
-This token should never be rendered to the end user, and with this API, it
-can't be!
-
--}
 type Cred
     = Cred Username String
 
@@ -51,31 +26,11 @@ credHeader (Cred _ str) =
     Http.header "authorization" ("Token " ++ str)
 
 
-{-| It's important that this is never exposed!
-
-We expose `login` and `application` instead, so we can be certain that if anyone
-ever has access to a `Cred` value, it came from either the login API endpoint
-or was passed in via flags.
-
--}
 credDecoder : Decoder Cred
 credDecoder =
     Decode.succeed Cred
         |> required "username" Username.decoder
         |> required "token" Decode.string
-
-
-
--- PERSISTENCE
-
-
-decode : Decoder (Cred -> viewer) -> Value -> Result Decode.Error viewer
-decode decoder value =
-    -- It's stored in localStorage as a JSON String;
-    -- first decode the Value as a String, then
-    -- decode that String as JSON.
-    Decode.decodeValue Decode.string value
-        |> Result.andThen (\str -> Decode.decodeString (Decode.field "user" (decoderFromCred decoder)) str)
 
 
 port onStoreChange : (Value -> msg) -> Sub msg
@@ -88,9 +43,6 @@ viewerChanges toMsg decoder =
 
 decodeFromChange : Decoder (Cred -> viewer) -> Value -> Maybe viewer
 decodeFromChange viewerDecoder val =
-    -- It's stored in localStorage as a JSON String;
-    -- first decode the Value as a String, then
-    -- decode that String as JSON.
     Decode.decodeValue (storageDecoder viewerDecoder) val
         |> Result.toMaybe
 
@@ -118,11 +70,6 @@ logout =
 
 
 port storeCache : Maybe Value -> Cmd msg
-
-
-
--- SERIALIZATION
--- APPLICATION
 
 
 application :
@@ -160,10 +107,6 @@ application viewerDecoder config =
 storageDecoder : Decoder (Cred -> viewer) -> Decoder viewer
 storageDecoder viewerDecoder =
     Decode.field "user" (decoderFromCred viewerDecoder)
-
-
-
--- HTTP
 
 
 get : Endpoint -> Maybe Cred -> Decoder a -> Http.Request a
@@ -252,17 +195,11 @@ decoderFromCred decoder =
         credDecoder
 
 
-
--- ERRORS
-
-
 addServerError : List String -> List String
 addServerError list =
     "Server error" :: list
 
 
-{-| Many API endpoints include an "errors" field in their BadStatus responses.
--}
 decodeErrors : Http.Error -> List String
 decodeErrors error =
     case error of
@@ -271,7 +208,7 @@ decodeErrors error =
                 |> decodeString (field "errors" errorsDecoder)
                 |> Result.withDefault [ "Server error" ]
 
-        err ->
+        _ ->
             [ "Server error" ]
 
 
@@ -284,17 +221,3 @@ errorsDecoder =
 fromPair : ( String, List String ) -> List String
 fromPair ( field, errors ) =
     List.map (\error -> field ++ " " ++ error) errors
-
-
-
--- LOCALSTORAGE KEYS
-
-
-cacheStorageKey : String
-cacheStorageKey =
-    "cache"
-
-
-credStorageKey : String
-credStorageKey =
-    "cred"

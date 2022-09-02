@@ -1,33 +1,24 @@
 module Page.Profile exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
-{-| An Author's profile.
--}
-
 import Api exposing (Cred)
 import Api.Endpoint as Endpoint
-import Article exposing (Article, Preview)
 import Article.Feed as Feed
 import Author exposing (Author(..), FollowedAuthor, UnfollowedAuthor)
-import Avatar exposing (Avatar)
+import Avatar
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Http
 import Loading
 import Log
 import Page
-import PaginatedList exposing (PaginatedList)
-import Profile exposing (Profile)
+import PaginatedList
+import Profile
 import Route
 import Session exposing (Session)
-import Task exposing (Task)
+import Task
 import Time
 import Url.Builder
 import Username exposing (Username)
-import Viewer exposing (Viewer)
-
-
-
--- MODEL
 
 
 type alias Model =
@@ -36,8 +27,6 @@ type alias Model =
     , errors : List String
     , feedTab : FeedTab
     , feedPage : Int
-
-    -- Loaded independently from server
     , author : Status Author
     , feed : Status Feed.Model
     }
@@ -102,10 +91,6 @@ defaultFeedTab =
     MyArticles
 
 
-
--- HTTP
-
-
 fetchFeed : Session -> FeedTab -> Username -> Int -> Cmd Msg
 fetchFeed session feedTabs username page =
     let
@@ -138,10 +123,6 @@ articlesPerPage =
     5
 
 
-
--- VIEW
-
-
 view : Model -> { title : String, content : Html Msg }
 view model =
     let
@@ -150,10 +131,10 @@ view model =
                 Loaded (IsViewer _ _) ->
                     myProfileTitle
 
-                Loaded ((IsFollowing followedAuthor) as author) ->
+                Loaded ((IsFollowing _) as author) ->
                     titleForOther (Author.username author)
 
-                Loaded ((IsNotFollowing unfollowedAuthor) as author) ->
+                Loaded ((IsNotFollowing _) as author) ->
                     titleForOther (Author.username author)
 
                 Loading username ->
@@ -245,10 +226,6 @@ view model =
     }
 
 
-
--- PAGE TITLE
-
-
 titleForOther : Username -> String
 titleForOther otherUsername =
     "Profile — " ++ Username.toString otherUsername
@@ -278,10 +255,6 @@ defaultTitle =
     "Profile"
 
 
-
--- TABS
-
-
 viewTabs : FeedTab -> Html Msg
 viewTabs tab =
     case tab of
@@ -300,10 +273,6 @@ myArticles =
 favoritedArticles : ( String, Msg )
 favoritedArticles =
     ( "Favorited Articles", ClickedTab FavoritedArticles )
-
-
-
--- UPDATE
 
 
 type Msg
@@ -354,7 +323,7 @@ update msg model =
             , Cmd.none
             )
 
-        CompletedFollowChange (Err error) ->
+        CompletedFollowChange (Err _) ->
             ( model
             , Log.error
             )
@@ -362,7 +331,7 @@ update msg model =
         CompletedAuthorLoad (Ok author) ->
             ( { model | author = Loaded author }, Cmd.none )
 
-        CompletedAuthorLoad (Err ( username, err )) ->
+        CompletedAuthorLoad (Err ( username, _ )) ->
             ( { model | author = Failed username }
             , Log.error
             )
@@ -372,7 +341,7 @@ update msg model =
             , Cmd.none
             )
 
-        CompletedFeedLoad (Err ( username, err )) ->
+        CompletedFeedLoad (Err ( username, _ )) ->
             ( { model | feed = Failed username }
             , Log.error
             )
@@ -407,8 +376,6 @@ update msg model =
 
         PassedSlowLoadThreshold ->
             let
-                -- If any data is still Loading, change it to LoadingSlowly
-                -- so `view` knows to render a spinner.
                 feed =
                     case model.feed of
                         Loading username ->
@@ -420,17 +387,9 @@ update msg model =
             ( { model | feed = feed }, Cmd.none )
 
 
-
--- SUBSCRIPTIONS
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Session.changes GotSession (Session.navKey model.session)
-
-
-
--- EXPORT
 
 
 toSession : Model -> Session

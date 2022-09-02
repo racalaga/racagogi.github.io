@@ -1,17 +1,13 @@
 module Page.Article exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
-{-| Viewing an individual article.
--}
-
 import Api exposing (Cred)
 import Api.Endpoint as Endpoint
 import Article exposing (Article, Full, Preview)
 import Article.Body exposing (Body)
 import Article.Comment as Comment exposing (Comment)
-import Article.Slug as Slug exposing (Slug)
+import Article.Slug exposing (Slug)
 import Author exposing (Author(..), FollowedAuthor, UnfollowedAuthor)
 import Avatar
-import Browser.Navigation as Nav
 import CommentId exposing (CommentId)
 import Html exposing (..)
 import Html.Attributes exposing (attribute, class, disabled, href, id, placeholder, value)
@@ -21,26 +17,20 @@ import Json.Decode as Decode
 import Loading
 import Log
 import Page
-import Profile exposing (Profile)
+import Profile
 import Route
 import Session exposing (Session)
-import Task exposing (Task)
+import Task
 import Time
 import Timestamp
-import Username exposing (Username)
+import Username
 import Viewer exposing (Viewer)
-
-
-
--- MODEL
 
 
 type alias Model =
     { session : Session
     , timeZone : Time.Zone
     , errors : List String
-
-    -- Loaded independently from server
     , comments : Status ( CommentText, List Comment )
     , article : Status (Article Full)
     }
@@ -79,10 +69,6 @@ init session slug =
         , Task.perform (\_ -> PassedSlowLoadThreshold) Loading.slowThreshold
         ]
     )
-
-
-
--- VIEW
 
 
 view : Model -> { title : String, content : Html Msg }
@@ -152,7 +138,6 @@ view model =
                             ]
                         , div [ class "row" ]
                             [ div [ class "col-xs-12 col-md-8 offset-md-2" ] <|
-                                -- Don't render the comments until the article has loaded!
                                 case model.comments of
                                     Loading ->
                                         []
@@ -161,10 +146,6 @@ view model =
                                         [ Loading.icon ]
 
                                     Loaded ( commentText, comments ) ->
-                                        -- Don't let users add comments until they can
-                                        -- see the existing comments! Otherwise you
-                                        -- may be about to repeat something that's
-                                        -- already been said.
                                         viewAddComment slug commentText (Session.viewer model.session)
                                             :: List.map (viewComment model.timeZone slug) comments
 
@@ -280,7 +261,6 @@ viewComment timeZone slug comment =
                         [ i [ class "ion-trash-a" ] [] ]
 
                 _ ->
-                    -- You can't delete other peoples' comments!
                     text ""
 
         timestamp =
@@ -301,10 +281,6 @@ viewComment timeZone slug comment =
             , deleteCommentButton
             ]
         ]
-
-
-
--- UPDATE
 
 
 type Msg
@@ -344,7 +320,7 @@ update msg model =
         CompletedLoadArticle (Ok article) ->
             ( { model | article = Loaded article }, Cmd.none )
 
-        CompletedLoadArticle (Err error) ->
+        CompletedLoadArticle (Err _) ->
             ( { model | article = Failed }
             , Log.error
             )
@@ -352,13 +328,13 @@ update msg model =
         CompletedLoadComments (Ok comments) ->
             ( { model | comments = Loaded ( Editing "", comments ) }, Cmd.none )
 
-        CompletedLoadComments (Err error) ->
+        CompletedLoadComments (Err _) ->
             ( { model | article = Failed }, Log.error )
 
         CompletedFavoriteChange (Ok newArticle) ->
             ( { model | article = Loaded newArticle }, Cmd.none )
 
-        CompletedFavoriteChange (Err error) ->
+        CompletedFavoriteChange (Err _) ->
             ( { model | errors = Api.addServerError model.errors }
             , Log.error
             )
@@ -383,7 +359,7 @@ update msg model =
                 _ ->
                     ( model, Log.error )
 
-        CompletedFollowChange (Err error) ->
+        CompletedFollowChange (Err _) ->
             ( { model | errors = Api.addServerError model.errors }
             , Log.error
             )
@@ -391,9 +367,6 @@ update msg model =
         EnteredCommentText str ->
             case model.comments of
                 Loaded ( Editing _, comments ) ->
-                    -- You can only edit comment text once comments have loaded
-                    -- successfully, and when the comment is not currently
-                    -- being submitted.
                     ( { model | comments = Loaded ( Editing str, comments ) }
                     , Cmd.none
                     )
@@ -403,10 +376,7 @@ update msg model =
 
         ClickedPostComment cred slug ->
             case model.comments of
-                Loaded ( Editing "", comments ) ->
-                    -- No posting empty comments!
-                    -- We don't use Log.error here because this isn't an error,
-                    -- it just doesn't do anything.
+                Loaded ( Editing "", _ ) ->
                     ( model, Cmd.none )
 
                 Loaded ( Editing str, comments ) ->
@@ -417,9 +387,6 @@ update msg model =
                     )
 
                 _ ->
-                    -- Either we have no comment to post, or there's already
-                    -- one in the process of being posted, or we don't have
-                    -- a valid article, in which case how did we post this?
                     ( model, Log.error )
 
         CompletedPostComment (Ok comment) ->
@@ -432,7 +399,7 @@ update msg model =
                 _ ->
                     ( model, Log.error )
 
-        CompletedPostComment (Err error) ->
+        CompletedPostComment (Err _) ->
             ( { model | errors = Api.addServerError model.errors }
             , Log.error
             )
@@ -454,7 +421,7 @@ update msg model =
                 _ ->
                     ( model, Log.error )
 
-        CompletedDeleteComment id (Err error) ->
+        CompletedDeleteComment _ (Err _) ->
             ( { model | errors = Api.addServerError model.errors }
             , Log.error
             )
@@ -468,7 +435,7 @@ update msg model =
         CompletedDeleteArticle (Ok ()) ->
             ( model, Route.replaceUrl (Session.navKey model.session) Route.Home )
 
-        CompletedDeleteArticle (Err error) ->
+        CompletedDeleteArticle (Err _) ->
             ( { model | errors = Api.addServerError model.errors }
             , Log.error
             )
@@ -483,8 +450,6 @@ update msg model =
 
         PassedSlowLoadThreshold ->
             let
-                -- If any data is still Loading, change it to LoadingSlowly
-                -- so `view` knows to render a spinner.
                 article =
                     case model.article of
                         Loading ->
@@ -504,17 +469,9 @@ update msg model =
             ( { model | article = article, comments = comments }, Cmd.none )
 
 
-
--- SUBSCRIPTIONS
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Session.changes GotSession (Session.navKey model.session)
-
-
-
--- HTTP
 
 
 delete : Slug -> Cred -> Http.Request ()
@@ -522,17 +479,9 @@ delete slug cred =
     Api.delete (Endpoint.article slug) cred Http.emptyBody (Decode.succeed ())
 
 
-
--- EXPORT
-
-
 toSession : Model -> Session
 toSession model =
     model.session
-
-
-
--- INTERNAL
 
 
 fave : (Slug -> Cred -> Http.Request (Article Preview)) -> Cred -> Slug -> Body -> Cmd Msg

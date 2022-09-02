@@ -1,8 +1,5 @@
 module Page.Login exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
-{-| The login page.
--}
-
 import Api exposing (Cred)
 import Browser.Navigation as Nav
 import Html exposing (..)
@@ -28,30 +25,6 @@ type alias Model =
     }
 
 
-{-| Recording validation problems on a per-field basis facilitates displaying
-them inline next to the field where the error occurred.
-
-I implemented it this way out of habit, then realized the spec called for
-displaying all the errors at the top. I thought about simplifying it, but then
-figured it'd be useful to show how I would normally model this data - assuming
-the intended UX was to render errors per field.
-
-(The other part of this is having a view function like this:
-
-viewFieldErrors : ValidatedField -> List Problem -> Html msg
-
-...and it filters the list of problems to render only InvalidEntry ones for the
-given ValidatedField. That way you can call this:
-
-viewFieldErrors Email problems
-
-...next to the `email` field, and call `viewFieldErrors Password problems`
-next to the `password` field, and so on.
-
-The `LoginError` should be displayed elsewhere, since it doesn't correspond to
-a particular field.
-
--}
 type Problem
     = InvalidEntry ValidatedField String
     | ServerError String
@@ -144,10 +117,6 @@ viewForm form =
         ]
 
 
-
--- UPDATE
-
-
 type Msg
     = SubmittedForm
     | EnteredEmail String
@@ -198,16 +167,9 @@ update msg model =
             )
 
 
-{-| Helper function for `update`. Updates the form and returns Cmd.none.
-Useful for recording form fields!
--}
 updateForm : (Form -> Form) -> Model -> ( Model, Cmd Msg )
 updateForm transform model =
     ( { model | form = transform model.form }, Cmd.none )
-
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
@@ -215,19 +177,10 @@ subscriptions model =
     Session.changes GotSession (Session.navKey model.session)
 
 
-
--- FORM
-
-
-{-| Marks that we've trimmed the form's fields, so we don't accidentally send
-it to the server without having trimmed it!
--}
 type TrimmedForm
     = Trimmed Form
 
 
-{-| When adding a variant here, add it to `fieldsToValidate` too!
--}
 type ValidatedField
     = Email
     | Password
@@ -240,8 +193,6 @@ fieldsToValidate =
     ]
 
 
-{-| Trim the form and validate its fields. If there are problems, report them!
--}
 validate : Form -> Result (List Problem) TrimmedForm
 validate form =
     let
@@ -275,19 +226,12 @@ validateField (Trimmed form) field =
                     []
 
 
-{-| Don't trim while the user is typing! That would be super annoying.
-Instead, trim only on submit.
--}
 trimFields : Form -> TrimmedForm
 trimFields form =
     Trimmed
         { email = String.trim form.email
         , password = String.trim form.password
         }
-
-
-
--- HTTP
 
 
 login : TrimmedForm -> Http.Request Viewer
@@ -304,10 +248,6 @@ login (Trimmed form) =
                 |> Http.jsonBody
     in
     Api.login body Viewer.decoder
-
-
-
--- EXPORT
 
 
 toSession : Model -> Session

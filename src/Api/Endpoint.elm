@@ -7,8 +7,6 @@ import Url.Builder exposing (QueryParameter)
 import Username exposing (Username)
 
 
-{-| Http.request, except it takes an Endpoint instead of a Url.
--}
 request :
     { body : Http.Body
     , expect : Http.Expect a
@@ -31,15 +29,6 @@ request config =
         }
 
 
-
--- TYPES
-
-
-{-| Get a URL to the Conduit API.
-
-This is not publicly exposed, because we want to make sure the only way to get one of these URLs is from this module.
-
--}
 type Endpoint
     = Endpoint String
 
@@ -51,16 +40,10 @@ unwrap (Endpoint str) =
 
 url : List String -> List QueryParameter -> Endpoint
 url paths queryParams =
-    -- NOTE: Url.Builder takes care of percent-encoding special URL characters.
-    -- See https://package.elm-lang.org/packages/elm/url/latest/Url#percentEncode
     Url.Builder.crossOrigin "https://conduit.productionready.io"
         ("api" :: paths)
         queryParams
         |> Endpoint
-
-
-
--- ENDPOINTS
 
 
 login : Endpoint
@@ -81,10 +64,6 @@ users =
 follow : Username -> Endpoint
 follow uname =
     url [ "profiles", Username.toString uname, "follow" ] []
-
-
-
--- ARTICLE ENDPOINTS
 
 
 article : Slug -> Endpoint

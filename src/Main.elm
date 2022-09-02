@@ -1,13 +1,12 @@
 module Main exposing (main)
 
-import Api exposing (Cred)
+import Api
 import Article.Slug exposing (Slug)
-import Avatar exposing (Avatar)
 import Browser exposing (Document)
 import Browser.Navigation as Nav
 import Html exposing (..)
-import Json.Decode as Decode exposing (Value)
-import Page exposing (Page)
+import Json.Decode exposing (Value)
+import Page
 import Page.Article as Article
 import Page.Article.Editor as Editor
 import Page.Blank as Blank
@@ -19,19 +18,9 @@ import Page.Register as Register
 import Page.Settings as Settings
 import Route exposing (Route)
 import Session exposing (Session)
-import Task
-import Time
 import Url exposing (Url)
 import Username exposing (Username)
 import Viewer exposing (Viewer)
-
-
-
--- NOTE: Based on discussions around how asset management features
--- like code splitting and lazy loading have been shaping up, it's possible
--- that most of this file may become unnecessary in a future release of Elm.
--- Avoid putting things in this module unless there is no alternative!
--- See https://discourse.elm-lang.org/t/elm-spa-in-0-19/1800/2 for more.
 
 
 type Model
@@ -46,18 +35,10 @@ type Model
     | Editor (Maybe Slug) Editor.Model
 
 
-
--- MODEL
-
-
 init : Maybe Viewer -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init maybeViewer url navKey =
     changeRouteTo (Route.fromUrl url)
         (Redirect (Session.fromViewer navKey maybeViewer))
-
-
-
--- VIEW
 
 
 view : Model -> Document Msg
@@ -105,10 +86,6 @@ view model =
 
         Editor (Just _) editor ->
             viewPage Page.Other GotEditorMsg (Editor.view editor)
-
-
-
--- UPDATE
 
 
 type Msg
@@ -212,14 +189,6 @@ update msg model =
                 Browser.Internal url ->
                     case url.fragment of
                         Nothing ->
-                            -- If we got a link that didn't include a fragment,
-                            -- it's from one of those (href "") attributes that
-                            -- we have to include to make the RealWorld CSS work.
-                            --
-                            -- In an application doing path routing instead of
-                            -- fragment-based routing, this entire
-                            -- `case url.fragment of` expression this comment
-                            -- is inside would be unnecessary.
                             ( model, Cmd.none )
 
                         Just _ ->
@@ -269,19 +238,14 @@ update msg model =
             )
 
         ( _, _ ) ->
-            -- Disregard messages that arrived for the wrong page.
             ( model, Cmd.none )
 
 
 updateWith : (subModel -> Model) -> (subMsg -> Msg) -> Model -> ( subModel, Cmd subMsg ) -> ( Model, Cmd Msg )
-updateWith toModel toMsg model ( subModel, subCmd ) =
+updateWith toModel toMsg _ ( subModel, subCmd ) =
     ( toModel subModel
     , Cmd.map toMsg subCmd
     )
-
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
@@ -313,10 +277,6 @@ subscriptions model =
 
         Editor _ editor ->
             Sub.map GotEditorMsg (Editor.subscriptions editor)
-
-
-
--- MAIN
 
 
 main : Program Value Model Msg

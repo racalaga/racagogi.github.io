@@ -5,22 +5,12 @@ import Json.Decode as Decode exposing (Decoder)
 import Markdown
 
 
-
--- TYPES
-
-
 type Body
     = Body MarkdownString
 
 
-{-| Internal use only. I want to remind myself that the string inside Body contains markdown.
--}
 type alias MarkdownString =
     String
-
-
-
--- CONVERSIONS
 
 
 toHtml : Body -> List (Attribute msg) -> Html msg

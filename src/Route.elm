@@ -6,12 +6,8 @@ import Html exposing (Attribute)
 import Html.Attributes as Attr
 import Profile exposing (Profile)
 import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string)
+import Url.Parser as Parser exposing ((</>), Parser, oneOf, s)
 import Username exposing (Username)
-
-
-
--- ROUTING
 
 
 type Route
@@ -42,10 +38,6 @@ parser =
         ]
 
 
-
--- PUBLIC HELPERS
-
-
 href : Route -> Attribute msg
 href targetRoute =
     Attr.href (routeToString targetRoute)
@@ -58,15 +50,8 @@ replaceUrl key route =
 
 fromUrl : Url -> Maybe Route
 fromUrl url =
-    -- The RealWorld spec treats the fragment like a path.
-    -- This makes it *literally* the path, so we can proceed
-    -- with parsing as if it had been a normal path all along.
     { url | path = Maybe.withDefault "" url.fragment, fragment = Nothing }
         |> Parser.parse parser
-
-
-
--- INTERNAL
 
 
 routeToString : Route -> String

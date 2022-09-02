@@ -5,24 +5,17 @@ import Api.Endpoint as Endpoint
 import Article exposing (Article, Full)
 import Article.Body exposing (Body)
 import Article.Slug as Slug exposing (Slug)
-import Browser.Navigation as Nav
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, disabled, href, id, placeholder, type_, value)
+import Html.Attributes exposing (attribute, class, disabled, placeholder, value)
 import Html.Events exposing (onInput, onSubmit)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Loading
-import Page
-import Profile exposing (Profile)
 import Route
 import Session exposing (Session)
-import Task exposing (Task)
-import Time
+import Task
 
-
-
--- MODEL
 
 
 type alias Model =
@@ -33,13 +26,11 @@ type alias Model =
 
 type
     Status
-    -- Edit Article
     = Loading Slug
     | LoadingSlowly Slug
     | LoadingFailed Slug
     | Saving Slug Form
     | Editing Slug (List Problem) Form
-      -- New Article
     | EditingNew (List Problem) Form
     | Creating Form
 
@@ -80,8 +71,6 @@ initEdit session slug =
     , Cmd.batch
         [ Article.fetch (Session.cred session) slug
             |> Http.toTask
-            -- If init fails, store the slug that failed in the msg, so we can
-            -- at least have it later to display the page's title properly!
             |> Task.mapError (\httpError -> ( slug, httpError ))
             |> Task.attempt CompletedArticleLoad
         , Task.perform (\_ -> PassedSlowLoadThreshold) Loading.slowThreshold
@@ -90,7 +79,6 @@ initEdit session slug =
 
 
 
--- VIEW
 
 
 view : Model -> { title : String, content : Html Msg }
@@ -143,13 +131,13 @@ viewAuthenticated cred model =
                 LoadingSlowly _ ->
                     [ Loading.icon ]
 
-                Saving slug form ->
+                Saving _ form ->
                     [ viewForm cred form (editArticleSaveButton [ disabled True ]) ]
 
                 Creating form ->
                     [ viewForm cred form (newArticleSaveButton [ disabled True ]) ]
 
-                Editing slug problems form ->
+                Editing _ problems form ->
                     [ viewProblems problems
                     , viewForm cred form (editArticleSaveButton [])
                     ]
@@ -235,7 +223,6 @@ saveArticleButton caption extraAttrs =
 
 
 
--- UPDATE
 
 
 type Msg
@@ -293,7 +280,7 @@ update msg model =
             , Cmd.none
             )
 
-        CompletedArticleLoad (Err ( slug, error )) ->
+        CompletedArticleLoad (Err ( slug, _ )) ->
             ( { model | status = LoadingFailed slug }
             , Cmd.none
             )
@@ -366,17 +353,11 @@ save cred status =
                     )
 
         _ ->
-            -- We're in a state where saving is not allowed.
-            -- We tried to prevent getting here by disabling the Save
-            -- button, but somehow the user got here anyway!
-            --
-            -- If we had an error logging service, we would send
-            -- something to it here!
             ( status, Cmd.none )
 
 
 savingError : Http.Error -> Status -> Status
-savingError error status =
+savingError _ status =
     let
         problems =
             [ ServerError "Error saving article" ]
@@ -392,15 +373,6 @@ savingError error status =
             status
 
 
-{-| Helper function for `update`. Updates the form, if there is one,
-and returns Cmd.none.
-
-Useful for recording form fields!
-
-This could also log errors to the server if we are trying to record things in
-the form and we don't actually have a form.
-
--}
 updateForm : (Form -> Form) -> Model -> ( Model, Cmd Msg )
 updateForm transform model =
     let
@@ -431,7 +403,6 @@ updateForm transform model =
 
 
 
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
@@ -440,18 +411,10 @@ subscriptions model =
 
 
 
--- FORM
-
-
-{-| Marks that we've trimmed the form's fields, so we don't accidentally send
-it to the server without having trimmed it!
--}
 type TrimmedForm
     = Trimmed Form
 
 
-{-| When adding a variant here, add it to `fieldsToValidate` too!
--}
 type ValidatedField
     = Title
     | Body
@@ -464,8 +427,6 @@ fieldsToValidate =
     ]
 
 
-{-| Trim the form and validate its fields. If there are problems, report them!
--}
 validate : Form -> Result (List Problem) TrimmedForm
 validate form =
     let

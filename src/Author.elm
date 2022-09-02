@@ -1,79 +1,32 @@
 module Author exposing (Author(..), FollowedAuthor, UnfollowedAuthor, decoder, fetch, follow, followButton, profile, requestFollow, requestUnfollow, unfollow, unfollowButton, username, view)
 
-{-| The author of an Article. It includes a Profile.
-
-I designed this to make sure the compiler would help me keep these three
-possibilities straight when displaying follow buttons and such:
-
-  - I'm following this author.
-  - I'm not following this author.
-  - I _can't_ follow this author, because it's me!
-
-To do this, I defined `Author` a custom type with three variants, one for each
-of those possibilities.
-
-I also made separate types for FollowedAuthor and UnfollowedAuthor.
-They are custom type wrappers around Profile, and thier sole purpose is to
-help me keep track of which operations are supported.
-
-For example, consider these functions:
-
-requestFollow : UnfollowedAuthor -> Cred -> Http.Request Author
-requestUnfollow : FollowedAuthor -> Cred -> Http.Request Author
-
-These types help the compiler prevent several mistakes:
-
-  - Displaying a Follow button for an author the user already follows.
-  - Displaying an Unfollow button for an author the user already doesn't follow.
-  - Displaying either button when the author is ourself.
-
-There are still ways we could mess things up (e.g. make a button that calls Author.unfollow when you click it, but which displays "Follow" to the user) - but this rules out a bunch of potential problems.
-
--}
-
 import Api exposing (Cred)
 import Api.Endpoint as Endpoint
 import Html exposing (Html, a, i, text)
-import Html.Attributes exposing (attribute, class, href, id, placeholder)
+import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline exposing (custom, optional, required)
-import Json.Encode as Encode exposing (Value)
 import Profile exposing (Profile)
-import Route exposing (Route)
+import Route
 import Username exposing (Username)
-import Viewer exposing (Viewer)
 
 
-{-| An author - either the current user, another user we're following, or
-another user we aren't following.
-
-These distinctions matter because we can only perform "follow" requests for
-users we aren't following, we can only perform "unfollow" requests for
-users we _are_ following, and we can't perform either for ourselves.
-
--}
 type Author
     = IsFollowing FollowedAuthor
     | IsNotFollowing UnfollowedAuthor
     | IsViewer Cred Profile
 
 
-{-| An author we're following.
--}
 type FollowedAuthor
     = FollowedAuthor Username Profile
 
 
-{-| An author we're not following.
--}
 type UnfollowedAuthor
     = UnfollowedAuthor Username Profile
 
 
-{-| Return an Author's username.
--}
 username : Author -> Username
 username author =
     case author of
@@ -87,8 +40,6 @@ username author =
             val
 
 
-{-| Return an Author's profile.
--}
 profile : Author -> Profile
 profile author =
     case author of
@@ -102,18 +53,10 @@ profile author =
             val
 
 
-
--- FETCH
-
-
 fetch : Username -> Maybe Cred -> Http.Request Author
 fetch uname maybeCred =
     Decode.field "profile" (decoder maybeCred)
         |> Api.get (Endpoint.profiles uname) maybeCred
-
-
-
--- FOLLOWING
 
 
 follow : UnfollowedAuthor -> FollowedAuthor
@@ -183,10 +126,6 @@ toggleFollowButton txt extraClasses msgWhenClicked uname =
         ]
 
 
-
--- SERIALIZATION
-
-
 decoder : Maybe Cred -> Decoder Author
 decoder maybeCred =
     Decode.succeed Tuple.pair
@@ -199,7 +138,6 @@ decodeFromPair : Maybe Cred -> ( Profile, Username ) -> Decoder Author
 decodeFromPair maybeCred ( prof, uname ) =
     case maybeCred of
         Nothing ->
-            -- If you're logged out, you can't be following anyone!
             Decode.succeed (IsNotFollowing (UnfollowedAuthor uname prof))
 
         Just cred ->
@@ -225,9 +163,6 @@ authorFromFollowing prof uname isFollowing =
         IsNotFollowing (UnfollowedAuthor uname prof)
 
 
-{-| View an author. We basically render their username and a link to their
-profile, and that's it.
--}
 view : Username -> Html msg
 view uname =
     a [ class "author", Route.href (Route.Profile uname) ]

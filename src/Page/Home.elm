@@ -1,31 +1,22 @@
 module Page.Home exposing (Model, Msg, init, subscriptions, toSession, update, view)
 
-{-| The homepage. You can get here via either the / or /#/ routes.
--}
-
 import Api exposing (Cred)
 import Api.Endpoint as Endpoint
-import Article exposing (Article, Preview)
 import Article.Feed as Feed
 import Article.Tag as Tag exposing (Tag)
 import Browser.Dom as Dom
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, classList, href, id, placeholder)
+import Html.Attributes exposing (class, href)
 import Html.Events exposing (onClick)
 import Http
 import Loading
 import Log
 import Page
-import PaginatedList exposing (PaginatedList)
+import PaginatedList
 import Session exposing (Session)
 import Task exposing (Task)
 import Time
 import Url.Builder
-import Username exposing (Username)
-
-
-
--- MODEL
 
 
 type alias Model =
@@ -33,8 +24,6 @@ type alias Model =
     , timeZone : Time.Zone
     , feedTab : FeedTab
     , feedPage : Int
-
-    -- Loaded independently from server
     , tags : Status (List Tag)
     , feed : Status Feed.Model
     }
@@ -64,7 +53,7 @@ init session =
                 Nothing ->
                     GlobalFeed
 
-        loadTags =
+        _ =
             Http.toTask Tag.list
     in
     ( { session = session
@@ -153,10 +142,6 @@ viewBanner =
         ]
 
 
-
--- TABS
-
-
 viewTabs : Maybe Cred -> FeedTab -> Html Msg
 viewTabs maybeCred tab =
     case tab of
@@ -203,10 +188,6 @@ tagFeed tag =
     ( "#" ++ Tag.toString tag, ClickedTab (TagFeed tag) )
 
 
-
--- TAGS
-
-
 viewTags : List Tag -> Html Msg
 viewTags tags =
     div [ class "tag-list" ] (List.map viewTag tags)
@@ -217,15 +198,9 @@ viewTag tagName =
     a
         [ class "tag-pill tag-default"
         , onClick (ClickedTag tagName)
-
-        -- The RealWorld CSS requires an href to work properly.
         , href ""
         ]
         [ text (Tag.toString tagName) ]
-
-
-
--- UPDATE
 
 
 type Msg
@@ -269,13 +244,13 @@ update msg model =
         CompletedFeedLoad (Ok feed) ->
             ( { model | feed = Loaded feed }, Cmd.none )
 
-        CompletedFeedLoad (Err error) ->
+        CompletedFeedLoad (Err _) ->
             ( { model | feed = Failed }, Cmd.none )
 
         CompletedTagsLoad (Ok tags) ->
             ( { model | tags = Loaded tags }, Cmd.none )
 
-        CompletedTagsLoad (Err error) ->
+        CompletedTagsLoad (Err _) ->
             ( { model | tags = Failed }
             , Log.error
             )
@@ -308,8 +283,6 @@ update msg model =
 
         PassedSlowLoadThreshold ->
             let
-                -- If any data is still Loading, change it to LoadingSlowly
-                -- so `view` knows to render a spinner.
                 feed =
                     case model.feed of
                         Loading ->
@@ -329,10 +302,6 @@ update msg model =
             ( { model | feed = feed, tags = tags }, Cmd.none )
 
 
-
--- HTTP
-
-
 fetchFeed : Session -> FeedTab -> Int -> Task Http.Error Feed.Model
 fetchFeed session feedTabs page =
     let
@@ -347,7 +316,7 @@ fetchFeed session feedTabs page =
 
         request =
             case feedTabs of
-                YourFeed cred ->
+                YourFeed _ ->
                     Api.get (Endpoint.feed params) maybeCred decoder
 
                 GlobalFeed ->
@@ -372,22 +341,12 @@ articlesPerPage =
 scrollToTop : Task x ()
 scrollToTop =
     Dom.setViewport 0 0
-        -- It's not worth showing the user anything special if scrolling fails.
-        -- If anything, we'd log this to an error recording service.
         |> Task.onError (\_ -> Task.succeed ())
-
-
-
--- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Session.changes GotSession (Session.navKey model.session)
-
-
-
--- EXPORT
 
 
 toSession : Model -> Session
